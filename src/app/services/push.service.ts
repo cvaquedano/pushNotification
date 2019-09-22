@@ -7,15 +7,26 @@ import { Storage } from '@ionic/storage';
 })
 export class PushService {
 
-  constructor(private oneSignal: OneSignal, private storage: Storage) {
-    this.cargarMensajes();
-  }
+ 
+  mensajes: OSNotificationPayload[] = [
+    // {
+    //   title: 'Titulo de la push',
+    //   body: 'Este es el body de la push',
+    //   date: new Date()
+    // }
+  ];
 
-  mensajes: OSNotificationPayload[] = [];
   userId: string;
 
-
   pushListener = new EventEmitter<OSNotificationPayload>();
+
+
+
+  constructor( private oneSignal: OneSignal,
+               private storage: Storage ) {
+
+    this.cargarMensajes();
+  }
 
   async getMensajes() {
     await this.cargarMensajes();
@@ -25,22 +36,22 @@ export class PushService {
   congiguracionInicial() {
     this.oneSignal.startInit('67d0d3b7-700b-4fa3-8295-8a351426b81e', '973698010914');
 
-    this.oneSignal.inFocusDisplaying(this.oneSignal.OSInFocusDisplayOption.Notification);
+    this.oneSignal.inFocusDisplaying( this.oneSignal.OSInFocusDisplayOption.Notification );
 
-    this.oneSignal.handleNotificationReceived().subscribe(( noti ) => {
+    this.oneSignal.handleNotificationReceived().subscribe( ( noti ) => {
     // do something when notification is received
-    console.log('notificacion recibida', noti);
-    this.notificacionRecibida(noti);
+    console.log('Notificación recibida', noti );
+    this.notificacionRecibida( noti );
     });
 
-    this.oneSignal.handleNotificationOpened().subscribe(async ( noti ) => {
-    // do something when a notification is opened
-    console.log('notificacion abierta', noti);
-    await this.notificacionRecibida(noti.notification);
-
+    this.oneSignal.handleNotificationOpened().subscribe( async ( noti ) => {
+      // do something when a notification is opened
+      console.log('Notificación abierta', noti );
+      await this.notificacionRecibida( noti.notification );
     });
 
-    // Obtener ID del subscriptor
+
+    // Obtener ID del suscriptor
     this.oneSignal.getIds().then( info => {
       this.userId = info.userId;
       console.log(this.userId);
@@ -49,27 +60,49 @@ export class PushService {
     this.oneSignal.endInit();
   }
 
+  async getUserIdOneSignal() {
+    console.log('Cargando userId');
+    // Obtener ID del suscriptor
+    const info = await this.oneSignal.getIds();
+    this.userId = info.userId;
+    return info.userId;
+  }
+
   async notificacionRecibida( noti: OSNotification ) {
 
     await this.cargarMensajes();
 
     const payload = noti.payload;
-    const existePush = this.mensajes.find(mensaje => mensaje.notificationID === payload.notificationID);
+
+    const existePush = this.mensajes.find( mensaje => mensaje.notificationID === payload.notificationID );
 
     if ( existePush ) {
-    return;
+      return;
     }
-    this.mensajes.unshift( payload);
-    this.pushListener.emit( payload);
-    this.guardarMensajes();
+
+    this.mensajes.unshift( payload );
+    this.pushListener.emit( payload );
+
+    await this.guardarMensajes();
+
   }
 
   guardarMensajes() {
-    this.storage.set('mensajes', this.mensajes);
+    this.storage.set('mensajes', this.mensajes );
   }
 
   async cargarMensajes() {
-    this.mensajes = await this.storage.get('mensajes') || [];
+
+    this.mensajes =  await this.storage.get('mensajes') || [];
+
     return this.mensajes;
+
   }
+
+  async borrarMensajes() {
+    await this.storage.clear();
+    this.mensajes = [];
+    this.guardarMensajes();
+  }
+
 }
